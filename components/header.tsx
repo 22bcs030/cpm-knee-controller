@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Moon, Sun, Activity } from "lucide-react"
 import { motion } from "framer-motion"
 import { useEffect, useState } from "react"
+import ConnectDialog from "@/components/connect-dialog"
 
 export default function Header() {
   const { theme, setTheme } = useTheme()
@@ -40,7 +41,10 @@ export default function Header() {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.2 }}
+        className="flex items-center gap-2"
       >
+        <ConnectDialog />
+        
         {mounted && (
           <Button
             variant="outline"

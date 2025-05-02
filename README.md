@@ -13,7 +13,17 @@ The CPM Knee Controller provides a comprehensive user interface for healthcare p
 
 ## Screenshots
 
-(Add screenshots of your application here)
+### Control Interface
+![Control Interface](/images/Screenshot%202025-04-18%20012522.png)
+![Dark mode](/images/Screenshot%202025-04-18%20012808.png)
+
+### Live Data Monitoring
+![Live Data Monitoring](/images/Screenshot%202025-04-18%20012723.png)
+
+### Session Management
+![Session Management](/images/Screenshot%202025-04-18%20012748.png)
+
+
 
 ## Technologies Used
 

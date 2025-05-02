@@ -1,6 +1,8 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, type ReactNode, useRef } from "react"
+import { createESPConnection, parseESPMessage } from "@/utils/websocket-connection"
+import { useToast } from "@/components/ui/use-toast"
 
 // Define types
 interface Angles {
@@ -26,6 +28,7 @@ interface CPMContextType {
   sessionStartTime: number | null
   sessionLogs: SessionLog[]
   activeMotion: MotionType
+  deviceIP: string
   setActiveMotion: (motion: MotionType) => void
   setAngles: (angles: Angles) => void
   connect: () => void
@@ -33,7 +36,8 @@ interface CPMContextType {
   startSession: () => void
   stopSession: () => void
   calibrate: () => void
-  clearSessionLogs: () => void // New function to clear session logs
+  clearSessionLogs: () => void
+  updateDeviceIP: (newIP: string) => void
 }
 
 // Create context
@@ -41,6 +45,7 @@ const CPMContext = createContext<CPMContextType | undefined>(undefined)
 
 // Create provider component
 export function CPMProvider({ children }: { children: ReactNode }) {
+  const { toast } = useToast()
   const [isConnected, setIsConnected] = useState(false)
   const [isRunning, setIsRunning] = useState(false)
   const [angles, setAngles] = useState<Angles>({ pitch: 0, yaw: 0, roll: 0 })
@@ -49,43 +54,124 @@ export function CPMProvider({ children }: { children: ReactNode }) {
   const [sessionLogs, setSessionLogs] = useState<SessionLog[]>([])
   const [socket, setSocket] = useState<WebSocket | null>(null)
   const [activeMotion, setActiveMotion] = useState<MotionType>(null)
+  const [deviceIP, setDeviceIP] = useState<string>("192.168.137.125") // Default IP, can be changed
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Simulate WebSocket connection
+  // Real WebSocket connection to ESP8266
   const connect = () => {
-    // In a real app, this would connect to the ESP32 WebSocket
-    console.log("Connecting to ESP32...")
+    // Clear any existing reconnection attempts
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current)
+    }
 
-    // Simulate connection delay
-    setTimeout(() => {
-      setIsConnected(true)
-      addSessionLog("Connected to device")
-
-      // Simulate WebSocket
-      const mockSocket = {
-        send: (data: string) => {
-          console.log("Sent to ESP32:", data)
+    try {
+      // Create real WebSocket connection
+      console.log(`Connecting to ESP8266 at ${deviceIP}...`)
+      addSessionLog(`Attempting to connect to device at ${deviceIP}`)
+      
+      const newSocket = createESPConnection({
+        ipAddress: deviceIP,
+        onOpen: () => {
+          setIsConnected(true)
+          addSessionLog("Connected to device")
+          toast({
+            title: "Connected",
+            description: `Successfully connected to CPM device at ${deviceIP}`,
+          })
         },
-        close: () => {
-          console.log("WebSocket closed")
+        onMessage: (event) => {
+          const data = parseESPMessage(event.data)
+          if (!data) return
+          
+          // Update state based on received data
+          if (data.pitch !== undefined && data.roll !== undefined && data.yaw !== undefined) {
+            setCurrentAngles({
+              pitch: data.pitch,
+              roll: data.roll,
+              yaw: data.yaw,
+            })
+          }
+          
+          // Update motion status
+          if (data.status === "running") {
+            setIsRunning(true)
+          } else if (data.status === "stopped") {
+            setIsRunning(false)
+          } else if (data.status === "calibrated") {
+            // Handle calibration complete
+            setCurrentAngles((prev) => ({
+              ...prev,
+              [data.motion]: 0,
+            }))
+            setAngles((prev) => ({
+              ...prev,
+              [data.motion]: 0,
+            }))
+            
+            addSessionLog(`${data.motion.toUpperCase()} calibration completed`)
+            
+            toast({
+              title: "Calibration Complete",
+              description: `${data.motion} has been calibrated successfully`,
+            })
+          }
         },
-      } as unknown as WebSocket
-
-      setSocket(mockSocket)
-    }, 1000)
+        onClose: () => {
+          setIsConnected(false)
+          addSessionLog("Disconnected from device")
+          
+          // Attempt to reconnect after 5 seconds
+          reconnectTimeoutRef.current = setTimeout(() => {
+            if (!isConnected) {
+              connect()
+            }
+          }, 10000)
+        },
+        onError: () => {
+          toast({
+            title: "Connection Error",
+            description: "Failed to connect to the CPM device",
+            variant: "destructive",
+          })
+        }
+      })
+      
+      setSocket(newSocket)
+    } catch (error) {
+      console.error("Connection error:", error)
+      addSessionLog(`Connection error: ${error}`)
+      toast({
+        title: "Connection Failed",
+        description: "Could not connect to the CPM device. Check if the device is powered on and on the same network.",
+        variant: "destructive",
+      })
+    }
   }
 
   const disconnect = () => {
+    // Clear any reconnection attempts
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current)
+      reconnectTimeoutRef.current = null
+    }
+
     if (isRunning) {
       stopSession()
     }
 
     if (socket) {
       socket.close()
+      setSocket(null)
     }
 
     setIsConnected(false)
     setActiveMotion(null)
     addSessionLog("Disconnected from device")
+    
+    toast({
+      title: "Disconnected",
+      description: "Successfully disconnected from CPM device",
+    })
   }
 
   const startSession = () => {
@@ -95,7 +181,7 @@ export function CPMProvider({ children }: { children: ReactNode }) {
     setSessionStartTime(Date.now())
     addSessionLog(`${activeMotion.toUpperCase()} motion session started`, angles, activeMotion)
 
-    // Send command to ESP32
+    // Send command to ESP8266
     if (socket) {
       const command = {
         [activeMotion]: angles[activeMotion],
@@ -112,7 +198,7 @@ export function CPMProvider({ children }: { children: ReactNode }) {
     setIsRunning(false)
     addSessionLog(`${activeMotion?.toUpperCase()} motion session stopped`, currentAngles, activeMotion)
 
-    // Send command to ESP32
+    // Send command to ESP8266
     if (socket) {
       const command = {
         command: "stop",
@@ -126,28 +212,38 @@ export function CPMProvider({ children }: { children: ReactNode }) {
 
     addSessionLog(`${activeMotion.toUpperCase()} calibration started`, undefined, activeMotion)
 
-    // Send command to ESP32
+    // Send command to ESP8266
     if (socket) {
       const command = {
         command: "calibrate",
         motionType: activeMotion,
       }
       socket.send(JSON.stringify(command))
+      
+      toast({
+        title: "Calibrating",
+        description: `Calibrating ${activeMotion} motion. Please wait...`,
+      })
     }
-
-    // Simulate calibration process
-    setTimeout(() => {
-      setCurrentAngles((prev) => ({
-        ...prev,
-        [activeMotion]: 0,
-      }))
-      setAngles((prev) => ({
-        ...prev,
-        [activeMotion]: 0,
-      }))
-      addSessionLog(`${activeMotion.toUpperCase()} calibration completed`, undefined, activeMotion)
-    }, 2000)
   }
+
+  // Update device IP
+  const updateDeviceIP = (newIP: string) => {
+    setDeviceIP(newIP)
+  }
+
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      if (socket) {
+        socket.close()
+      }
+      
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current)
+      }
+    }
+  }, [socket])
 
   // New function to clear session logs
   const clearSessionLogs = () => {
@@ -170,32 +266,6 @@ export function CPMProvider({ children }: { children: ReactNode }) {
     setSessionLogs((prev) => [...prev, { timestamp, action, angles, motionType }])
   }
 
-  // Simulate receiving data from ESP32
-  useEffect(() => {
-    if (!isConnected || !activeMotion) return
-
-    let interval: NodeJS.Timeout
-
-    if (isRunning) {
-      interval = setInterval(() => {
-        // Simulate gradual movement towards target angles for the active motion only
-        setCurrentAngles((prev) => {
-          const newAngles = { ...prev }
-
-          // Only update the active motion
-          newAngles[activeMotion] =
-            prev[activeMotion] + (angles[activeMotion] - prev[activeMotion]) * 0.1 + (Math.random() * 0.4 - 0.2)
-
-          return newAngles
-        })
-      }, 100)
-    }
-
-    return () => {
-      if (interval) clearInterval(interval)
-    }
-  }, [isConnected, isRunning, angles, activeMotion])
-
   // Context value
   const value = {
     isConnected,
@@ -205,6 +275,7 @@ export function CPMProvider({ children }: { children: ReactNode }) {
     sessionStartTime,
     sessionLogs,
     activeMotion,
+    deviceIP,
     setActiveMotion,
     setAngles,
     connect,
@@ -212,7 +283,8 @@ export function CPMProvider({ children }: { children: ReactNode }) {
     startSession,
     stopSession,
     calibrate,
-    clearSessionLogs, // Add the new function to the context value
+    clearSessionLogs,
+    updateDeviceIP,
   }
 
   return <CPMContext.Provider value={value}>{children}</CPMContext.Provider>
