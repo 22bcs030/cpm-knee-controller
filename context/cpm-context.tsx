@@ -54,7 +54,7 @@ export function CPMProvider({ children }: { children: ReactNode }) {
   const [sessionLogs, setSessionLogs] = useState<SessionLog[]>([])
   const [socket, setSocket] = useState<WebSocket | null>(null)
   const [activeMotion, setActiveMotion] = useState<MotionType>(null)
-  const [deviceIP, setDeviceIP] = useState<string>("192.168.137.125") // Default IP, can be changed
+  const [deviceIP, setDeviceIP] = useState<string>("192.168.137.102") // Default IP, can be changed
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Real WebSocket connection to ESP8266
@@ -99,21 +99,23 @@ export function CPMProvider({ children }: { children: ReactNode }) {
             setIsRunning(false)
           } else if (data.status === "calibrated") {
             // Handle calibration complete
-            setCurrentAngles((prev) => ({
-              ...prev,
-              [data.motion]: 0,
-            }))
-            setAngles((prev) => ({
-              ...prev,
-              [data.motion]: 0,
-            }))
+            console.log(`Calibration complete for ${data.motion} - setting to 0`); // Debug log
             
-            addSessionLog(`${data.motion.toUpperCase()} calibration completed`)
+            // Update both current angles and target angles
+            const updatedAngles = {
+              ...currentAngles,
+              [data.motion]: 0
+            };
+            
+            setCurrentAngles(updatedAngles);
+            setAngles(updatedAngles);
+            
+            addSessionLog(`${data.motion.toUpperCase()} calibration completed`);
             
             toast({
               title: "Calibration Complete",
               description: `${data.motion} has been calibrated successfully`,
-            })
+            });
           }
         },
         onClose: () => {
@@ -219,6 +221,19 @@ export function CPMProvider({ children }: { children: ReactNode }) {
         motionType: activeMotion,
       }
       socket.send(JSON.stringify(command))
+      
+      // Immediately reset both angles and currentAngles for the active motion
+      setAngles((prev) => ({
+        ...prev,
+        [activeMotion]: 0,
+      }))
+      
+      setCurrentAngles((prev) => ({
+        ...prev,
+        [activeMotion]: 0,
+      }))
+      
+      console.log(`Calibrating ${activeMotion} - resetting to 0`); // Debug log
       
       toast({
         title: "Calibrating",

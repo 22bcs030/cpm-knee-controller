@@ -2,8 +2,8 @@
 // This file manages the WebSocket connection to the ESP8266 module
 
 // Configuration - update with your ESP8266's IP address
-const DEFAULT_ESP_IP = "192.168.137.125"; // Update with your ESP's IP address
-const DEFAULT_ESP_PORT = 81;
+const DEFAULT_ESP_IP = "192.168.137.102"; // Update with your ESP's IP address
+const DEFAULT_ESP_PORT = 80;
 
 export interface WSConnectionConfig {
   ipAddress?: string;

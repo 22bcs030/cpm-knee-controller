@@ -11,6 +11,34 @@ The CPM Knee Controller provides a comprehensive user interface for healthcare p
 - Export session data in various formats
 - Customize therapy protocols
 
+## Hardware Setup
+
+To set up the CPM machine hardware:
+
+1. **Upload Code**:
+   - First, upload the ESP8266 WiFi module code to your ESP8266
+     - Set the baud rate to 115200 in the Arduino IDE
+     - Select the correct board type (ESP8266)
+   - Then, upload the Arduino Mega code to your Arduino Mega
+     - Set the baud rate to 115200 in the Arduino IDE
+     - Select the correct board type (Arduino Mega 2560)
+   - Make sure to update the WiFi credentials (SSID and password) in the ESP8266 code to match your network
+
+2. **Power Supply**:
+   - Connect the ESP8266 to a 3.3V power supply
+   - Connect the Arduino Mega to a 5V power supply
+
+3. **Network Connection**:
+   - Ensure both the WiFi module and your computer/device are connected to the same WiFi network
+   - Note down the IP address displayed by the ESP8266 module
+
+4. **Application Connection**:
+   - Open the web application
+   - Click the "Connect" button
+   - Enter the ESP8266's IP address
+   - Click "Connect" to establish communication with the CPM machine
+   - Once connected, you can use the application interface to control the CPM machine
+
 ## Screenshots
 
 ### Control Interface
@@ -22,8 +50,6 @@ The CPM Knee Controller provides a comprehensive user interface for healthcare p
 
 ### Session Management
 ![Session Management](/images/Screenshot%202025-04-18%20012748.png)
-
-
 
 ## Technologies Used
 
@@ -75,49 +101,14 @@ The CPM Knee Controller provides a comprehensive user interface for healthcare p
 
 4. Open [http://localhost:3000](http://localhost:3000) with your browser to see the application.
 
-## Required Dependencies
+## Features
 
-The following dependencies are required to run this project:
-
-### Core Dependencies
-```
-"dependencies": {
-  "@radix-ui/react-alert-dialog": "^1.1.7",
-  "@radix-ui/react-slider": "^1.2.4",
-  "@radix-ui/react-slot": "^1.2.0",
-  "@radix-ui/react-tabs": "^1.1.4",
-  "@radix-ui/react-toast": "^1.2.7",
-  "class-variance-authority": "^0.7.1",
-  "clsx": "^2.1.1",
-  "framer-motion": "^10.16.4",
-  "jspdf": "^2.5.1",
-  "jspdf-autotable": "^3.7.0",
-  "lucide-react": "^0.292.0",
-  "next": "^15.3.0",
-  "next-themes": "^0.2.1",
-  "react": "^18",
-  "react-dom": "^18",
-  "recharts": "^2.9.3",
-  "tailwind-merge": "^3.2.0",
-  "xlsx": "^0.18.5"
-}
-```
-
-### Development Dependencies
-```
-"devDependencies": {
-  "@types/node": "^20",
-  "@types/react": "^18",
-  "@types/react-dom": "^18",
-  "autoprefixer": "^10.0.1",
-  "eslint": "^8",
-  "eslint-config-next": "14.0.3",
-  "postcss": "^8",
-  "tailwindcss": "^3.3.0",
-  "tailwindcss-animate": "^1.0.7",
-  "typescript": "^5"
-}
-```
+- **Real-time Motion Control**: Adjust speed, angle, and therapy parameters
+- **Data Visualization**: View live motion graphs and real-time feedback
+- **Session Management**: Track and store therapy sessions
+- **Data Export**: Export session data in multiple formats (JSON, CSV, Excel, PDF)
+- **Responsive Design**: Works on desktop, tablet, and mobile devices
+- **Dark/Light Theme**: User-selectable interface theme
 
 ## Usage
 
@@ -135,13 +126,6 @@ The following dependencies are required to run this project:
 3. **Session Tab**:
    - Review session statistics
    - Export session data
-
-## Building for Production
-
-```bash
-npm run build
-npm run start
-```
 
 ## License
 

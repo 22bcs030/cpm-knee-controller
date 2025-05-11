@@ -15,6 +15,7 @@ export default function ControlPanel() {
   const [localAngles, setLocalAngles] = useState(angles)
 
   useEffect(() => {
+    console.log("Angles updated:", angles); // Debug log
     setLocalAngles(angles)
   }, [angles])
 
@@ -88,6 +89,19 @@ export default function ControlPanel() {
   }
 
   const motionDetails = getMotionDetails()
+
+  // Add a debug log when motion details change
+  useEffect(() => {
+    if (motionDetails) {
+      console.log("Motion details updated:", {
+        motion: activeMotion,
+        value: motionDetails.value,
+        min: motionDetails.min,
+        max: motionDetails.max,
+        zeroPosition: ((0 - motionDetails.min) / (motionDetails.max - motionDetails.min)) * 100
+      });
+    }
+  }, [motionDetails, activeMotion]);
 
   if (!isConnected) {
     return (
